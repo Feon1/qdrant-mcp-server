@@ -85,7 +85,7 @@ TOOLS = [
                 "limit": {
                     "type": "integer",
                     "description": "Сколько фрагментов вернуть (1-20).",
-                    "default": 5
+                    "default": 10
                 }
             },
             "required": ["query"]
