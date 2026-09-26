@@ -19,3 +19,8 @@ jobs:
           echo "Pinging at $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
           curl -s -o /dev/null -w "HTTP %{http_code}\n" \
             https://xiaozhi-mcphub-deploy-server.onrender.com/health
+      - name: Ping MCP Server
+        run: |
+          echo "Pinging MCP Server at $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          curl -s -o /dev/null -w "HTTP %{http_code}\n" \
+            https://qdrant-mcp-server.onrender.com/health     
