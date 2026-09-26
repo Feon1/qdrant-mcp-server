@@ -1,26 +1,76 @@
-name: Keep Render MCP Hub Alive
+name: Keep Render Services Alive
 
 on:
   schedule:
-    # Пинг каждые 14 минут в интервале 07:00–21:00 МСК (UTC+3)
-    # В UTC это: 04:00–18:00
-    # GitHub Actions cron — по UTC
-    - cron: '*/14 4-17 * * *'
-    # Последний пинг в 18:00 UTC (21:00 МСК)
-    - cron: '0 18 * * *'
-  workflow_dispatch:  # кнопка «Run workflow» для теста
+    # ===== Пн-Пт: 12:00–22:00 МСК = 09:00–19:00 UTC =====
+    - cron: '*/14 9-18 * * 1-5'   # каждые ≤14 мин, 09:00–18:59 UTC
+    - cron: '0 19 * * 1-5'        # последний пинг в 19:00 UTC (22:00 МСК)
+
+    # ===== Сб-Вс: 08:00–22:00 МСК = 05:00–19:00 UTC =====
+    - cron: '*/14 5-18 * * 0,6'   # каждые ≤14 мин, 05:00–18:59 UTC
+    - cron: '0 19 * * 0,6'        # последний пинг в 19:00 UTC (22:00 МСК)
+
+  workflow_dispatch:  # кнопка «Run workflow» для ручного теста
 
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping MCP Hub
+      - name: Ping all Render services
         run: |
-          echo "Pinging at $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
-          curl -s -o /dev/null -w "HTTP %{http_code}\n" \
-            https://xiaozhi-mcphub-deploy-server.onrender.com/health
-      - name: Ping MCP Server
-        run: |
-          echo "Pinging MCP Server at $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
-          curl -s -o /dev/null -w "HTTP %{http_code}\n" \
-            https://qdrant-mcp-server.onrender.com/health     
+          TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          MSK_TIME=$(TZ='Europe/Moscow' date '+%Y-%m-%d %H:%M:%S MSK')
+          DAY=$(TZ='Europe/Moscow' date '+%A')
+
+          echo "════════════════════════════════════════════"
+          echo "  Keep-alive ping"
+          echo "  UTC: $TIMESTAMP"
+          echo "  MSK: $MSK_TIME ($DAY)"
+          echo "════════════════════════════════════════════"
+
+          # Список сервисов: имя|URL
+          SERVICES=(
+            "MCP Hub|https://xiaozhi-mcphub-deploy-server.onrender.com/health"
+            "Qdrant MCP Server|https://qdrant-mcp-server.onrender.com/health"
+            
+          )
+
+          FAILED=0
+
+          for entry in "${SERVICES[@]}"; do
+            NAME="${entry%%|*}"
+            URL="${entry##*|}"
+
+            # Пробуем 3 раза с задержкой 10 секунд (для холодного старта)
+            SUCCESS=0
+            for attempt in 1 2 3; do
+              HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+                --max-time 60 \
+                --retry 0 \
+                "$URL" 2>/dev/null || echo "000")
+
+              if [ "$HTTP_CODE" = "200" ]; then
+                echo "✅ $NAME → HTTP $HTTP_CODE (attempt $attempt)"
+                SUCCESS=1
+                break
+              else
+                echo "⏳ $NAME → HTTP $HTTP_CODE (attempt $attempt, retry in 10s)"
+                if [ $attempt -lt 3 ]; then
+                  sleep 10
+                fi
+              fi
+            done
+
+            if [ "$SUCCESS" = "0" ]; then
+              echo "❌ $NAME → все попытки исчерпаны"
+              FAILED=$((FAILED + 1))
+            fi
+          done
+
+          echo "════════════════════════════════════════════"
+          if [ "$FAILED" -gt 0 ]; then
+            echo "⚠️  Не ответили: $FAILED сервис(ов)"
+            exit 1
+          else
+            echo "🎉 Все сервисы в порядке"
+          fi
