@@ -1,0 +1,54 @@
+name: Keep Render Services Alive
+
+on:
+  schedule:
+    # ===== Пн-Пт: 10:00–22:00 МСК = 07:00–19:00 UTC =====
+    - cron: '*/10 7-18 * * 1-5'
+    - cron: '0 19 * * 1-5'
+
+    # ===== Сб-Вс: 10:00–22:00 МСК = 07:00–19:00 UTC =====
+    - cron: '*/10 7-18 * * 0,6'
+    - cron: '0 19 * * 0,6'
+
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping MCP Hub
+        continue-on-error: true
+        run: |
+          echo "════════════════════════════════════════════"
+          echo "  Ping at $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "  MSK:     $(TZ='Europe/Moscow' date '+%Y-%m-%d %H:%M:%S')"
+          echo "════════════════════════════════════════════"
+
+          HTTP=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-time 120 \
+            --retry 2 \
+            --retry-delay 15 \
+            --retry-all-errors \
+            https://xiaozhi-mcphub-deploy-server.onrender.com/health || echo "000")
+
+          echo "MCP Hub → HTTP $HTTP"
+
+          if [ "$HTTP" != "200" ]; then
+            echo "⚠️ MCP Hub не ответил, но продолжаем"
+          fi
+
+      - name: Ping Qdrant MCP Server
+        continue-on-error: true
+        run: |
+          HTTP=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-time 120 \
+            --retry 2 \
+            --retry-delay 15 \
+            --retry-all-errors \
+            https://qdrant-mcp-server.onrender.com/health || echo "000")
+
+          echo "Qdrant MCP → HTTP $HTTP"
+
+      - name: Show result
+        run: |
+          echo "🎉 Ping completed"
