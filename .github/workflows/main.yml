@@ -2,25 +2,24 @@ name: Keep Render Services Alive
 
 on:
   schedule:
-    # Пн-Пт: 10:00–21:50 МСК каждые 10 минут
-    - cron: '*/10 10-21 * * 1-5'
-    # Пн-Пт: Финальный пинг в 22:00 МСК
-    - cron: '0 22 * * 1-5'
+    # Пн-Пт: 10:00–21:50 МСК (07:00–18:50 UTC) каждые 10 минут
+    - cron: '*/10 7-18 * * 1-5'
+    # Пн-Пт: Финальный пинг в 22:00 МСК (19:00 UTC)
+    - cron: '0 19 * * 1-5'
     
-    # Сб-Вс: 10:00–21:50 МСК каждые 10 минут
-    - cron: '*/10 10-21 * * 0,6'
-    # Сб-Вс: Финальный пинг в 22:00 МСК
-    - cron: '0 22 * * 0,6'
+    # Сб-Вс: 10:00–21:50 МСК (07:00–18:50 UTC) каждые 10 минут
+    - cron: '*/10 7-18 * * 0,6'
+    # Сб-Вс: Финальный пинг в 22:00 МСК (19:00 UTC)
+    - cron: '0 19 * * 0,6'
     
-  timezone: "Europe/Moscow" # <--- Явно указываем часовой пояс (Москва)
-  workflow_dispatch: # <--- Оставляем для ручного теста
+  workflow_dispatch: # Ручной запуск (оставляем как есть)
 
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
       - name: Ping MCP Hub (Root Endpoint)
-        continue-on-error: true # <--- Важно: если один упал, пингуем второй
+        continue-on-error: true
         run: |
           echo "=== $(date -u '+%Y-%m-%d %H:%M:%S UTC') ==="
           HTTP_CODE=$(curl -s -o /tmp/mcphub_response.txt -w "%{http_code}" \
