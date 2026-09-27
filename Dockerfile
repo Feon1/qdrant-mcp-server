@@ -2,45 +2,42 @@
 FROM node:20-alpine AS mcphub-builder
 
 WORKDIR /app/mcphub
-
-# Устанавливаем необходимые пакеты для сборки
 RUN apk add --no-cache git python3 make g++
 
-# Клонируем репозиторий MCP Hub
 RUN git clone https://github.com/huangjunsen0406/xiaozhi-mcphub.git .
-
-# Активируем corepack и устанавливаем нужную версию pnpm
-# Версия должна совпадать с той, что указана в package.json проекта
 RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
-
-# Устанавливаем зависимости и собираем проект
 RUN pnpm install --frozen-lockfile
 RUN pnpm build
 
 # ========== Этап 2: Финальный образ ==========
 FROM python:3.11-slim
 
-# Устанавливаем Node.js, curl и supervisor
 RUN apt-get update && apt-get install -y \
     curl \
     supervisor \
+    git \
     && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
-# Копируем собранный MCP Hub из первого этапа
+RUN npm install -g pnpm
+
+# Копируем MCP Hub
 COPY --from=mcphub-builder /app/mcphub /app/mcphub
 
-# Копируем Python-сервер (ваш qdrant-mcp-server)
+# Клонируем qdrant-proxy из вашего репозитория
+WORKDIR /app/qdrant-proxy
+RUN git clone https://github.com/Feon1/qdrant-proxy.git .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Копируем qdrant-mcp (ваш Python-сервер)
 WORKDIR /app/qdrant
 COPY . .
 RUN pip install --no-cache-dir fastapi uvicorn httpx
 
-# Копируем конфигурацию supervisord
+# supervisord конфигурация
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Открываем порты (внутренние порты контейнера)
-EXPOSE 3000 8300
+EXPOSE 3000
 
-# Запускаем supervisord, который поднимет оба процесса
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
