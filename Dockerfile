@@ -10,7 +10,7 @@ RUN pnpm install --frozen-lockfile
 RUN pnpm build
 
 # ========== Этап 2: Финальный образ ==========
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 RUN apt-get update && apt-get install -y \
     curl \
@@ -22,20 +22,20 @@ RUN apt-get update && apt-get install -y \
 
 RUN npm install -g pnpm
 
-# Копируем MCP Hub
+# ---------- MCP Hub (Node.js) ----------
 COPY --from=mcphub-builder /app/mcphub /app/mcphub
 
-# Клонируем qdrant-proxy из вашего репозитория
+# ---------- qdrant-proxy (Python) ----------
 WORKDIR /app/qdrant-proxy
 RUN git clone https://github.com/Feon1/qdrant-proxy.git .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Копируем qdrant-mcp (ваш Python-сервер)
+# ---------- qdrant-mcp (Python, ваш сервер) ----------
 WORKDIR /app/qdrant
 COPY . .
 RUN pip install --no-cache-dir fastapi uvicorn httpx
 
-# supervisord конфигурация
+# ---------- supervisord ----------
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 EXPOSE 3000
