@@ -122,6 +122,10 @@ async def mcp_endpoint(request: Request):
 async def health():
     return {"status": "ok", "service": "qdrant-mcp-server", "transport": "streamable-http"}
 
+@app.get("/ping")
+async def ping():
+    return {"ok": True}
+
 
 if __name__ == "__main__":
     import uvicorn
