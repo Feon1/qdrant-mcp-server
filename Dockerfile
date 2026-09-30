@@ -4,7 +4,7 @@ FROM node:20-alpine AS mcphub-builder
 WORKDIR /app/mcphub
 RUN apk add --no-cache git python3 make g++
 
-RUN git clone https://github.com/huangjunsen0406/xiaozhi-mcphub.git .
+RUN git clone https://github.com/Feon1/xiaozhi-mcphub.git .
 RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 RUN pnpm install --frozen-lockfile
 RUN pnpm build
