@@ -26,6 +26,8 @@ RUN npm install -g pnpm
 # ---------- MCP Hub (Node.js) ----------
 COPY --from=mcphub-builder /app/mcphub /app/mcphub
 
+# В финальном этапе (stage-1) после установки python
+RUN pip install --no-cache-dir uv
 # ---------- qdrant-proxy (Python) ----------
 WORKDIR /app/qdrant-proxy
 RUN git clone https://github.com/Feon1/qdrant-proxy.git .
