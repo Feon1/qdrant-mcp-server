@@ -1,5 +1,6 @@
 """MCP-сервер для Qdrant через Streamable HTTP (без SSE)."""
 import os
+import re                          # ← 1. Добавьте этот импорт
 import json
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -12,6 +13,21 @@ DEFAULT_LIMIT = int(os.getenv("DEFAULT_LIMIT", "4"))
 
 
 app = FastAPI(title="Qdrant MCP Server (Streamable HTTP)")
+
+
+# ← 2. Функция очистки — определяется на уровне модуля, ДО qdrant_find
+def clean_chunk(text: str) -> str:
+    """Убирает типичный мусор из PDF-извлечений (метаданные, колонтитулы)."""
+    # Метаданные PDF: "Nayka and Ortodoxy 1.qxd 31.08.2005 10:12 Page 148"
+    text = re.sub(r'\S+\.qxd\s+\d{2}\.\d{2}\.\d{4}\s+\d{2}:\d{2}\s+Page\s+\d+', '', text)
+    # Колонтитул интернет-портала
+    text = re.sub(r'интернет-портал\s+«[^»]+»', '', text)
+    # Номера страниц на отдельной строке (просто число)
+    text = re.sub(r'^\s*\d{1,4}\s*$', '', text, flags=re.MULTILINE)
+    # Множественные пробелы и пустые строки
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    text = re.sub(r'[ \t]{2,}', ' ', text)
+    return text.strip()
 
 
 async def qdrant_find(query: str, limit: int = DEFAULT_LIMIT) -> str:
@@ -27,10 +43,16 @@ async def qdrant_find(query: str, limit: int = DEFAULT_LIMIT) -> str:
             data = r.json()
     except Exception as e:
         return f"Ошибка поиска: {e}"
-    chunks = [c.get("text", "") for c in data.get("chunks", []) if c.get("text")]
+
+    # ← 3. Очищаем каждый чанк и отбрасываем слишком короткие обрывки
+    chunks = [clean_chunk(c.get("text", "")) for c in data.get("chunks", []) if c.get("text")]
+    chunks = [c for c in chunks if len(c) > 80]   # 80 символов — минимальная длина осмысленного чанка
+
     if not chunks:
         return "В базе знаний ничего не найдено."
     return "\n\n---\n\n".join(chunks)
+
+
 
 
 TOOLS = [{
