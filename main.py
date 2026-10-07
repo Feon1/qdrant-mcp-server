@@ -8,7 +8,7 @@ import httpx
 
 PROXY_URL = os.getenv("PROXY_URL", "https://qdrant-proxy-e9ov.onrender.com/search")
 PROXY_TOKEN = os.getenv("PROXY_TOKEN", "")
-DEFAULT_LIMIT = int(os.getenv("DEFAULT_LIMIT", "10"))
+DEFAULT_LIMIT = int(os.getenv("DEFAULT_LIMIT", "4"))
 
 
 app = FastAPI(title="Qdrant MCP Server (Streamable HTTP)")
